@@ -18,12 +18,20 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message
 logger = logging.getLogger(__name__)
 tqdm = partial(tqdm, dynamic_ncols=True)
 
+path_prefix = "/home/joe/Dataset/Interaction/INTERACTION-Dataset-DR-single-v1_2"
+mode = "val"
+data_path = os.path.join(path_prefix, mode)
+map_path = os.path.join(path_prefix, "maps")
+target_veh_path = os.path.join(path_prefix, f"{mode}_target_filter")
+save_dir = "/home/joe/Desktop/trained_model/dense_tnt/val/"
+os.makedirs(save_dir, exist_ok=True)
+
 
 def eval_instance_argoverse(batch_size, args, pred, mapping, file2pred, file2labels, DEs, iter_bar):
     for i in range(batch_size):
         a_pred = pred[i]
         assert a_pred.shape == (6, args.future_frame_num, 2)
-        file_name_int = int(os.path.split(mapping[i]['file_name'])[1][:-4])
+        file_name_int = mapping[i]['file_name']
         file2pred[file_name_int] = a_pred
         if not args.do_test:
             file2labels[file_name_int] = mapping[i]['origin_labels']
@@ -50,8 +58,16 @@ def do_eval(args):
 
     print("Loading Evalute Dataset", args.data_dir)
     if args.argoverse:
-        from dataset_argoverse import Dataset
-    eval_dataset = Dataset(args, args.eval_batch_size)
+        from dataset_interaction import Dataset
+    eval_dataset = Dataset(
+        args=args,
+        batch_size=args.train_batch_size,
+        data_path=data_path,
+        map_path=map_path,
+        target_veh_path=target_veh_path,
+        mode=mode,
+        save_dir=save_dir
+    )
     eval_sampler = SequentialSampler(eval_dataset)
     eval_dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=args.eval_batch_size,
                                                   sampler=eval_sampler,
@@ -98,7 +114,7 @@ def do_eval(args):
         utils.select_goals_by_optimization(None, None, close=True)
 
     if args.argoverse:
-        from dataset_argoverse import post_eval
+        from dataset_interaction import post_eval
         post_eval(args, file2pred, file2labels, DEs)
 
 

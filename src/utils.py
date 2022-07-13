@@ -33,19 +33,19 @@ if _False:
 def add_argument(parser):
     assert isinstance(parser, argparse.ArgumentParser)
     # Required parameters
-    parser.add_argument("--do_train",
+    parser.add_argument("--do_train", default=True,
                         action='store_true',
                         help="Whether to run training.")
-    parser.add_argument("-e", "--do_eval",
+    parser.add_argument("-e", "--do_eval", default=True,
                         action='store_true',
                         help="Whether to run eval on the dev set.")
     parser.add_argument("--do_test",
                         action='store_true')
     parser.add_argument("--data_dir",
-                        default='train/data/',
+                        default='/home/joe/Desktop/trained_model/dense_tnt/train/',
                         type=str)
     parser.add_argument("--data_dir_for_val",
-                        default='val/data/',
+                        default='/home/joe/Desktop/trained_model/dense_tnt/val/',
                         type=str)
     parser.add_argument("--output_dir", default="tmp/", type=str)
     parser.add_argument("--log_dir", default=None, type=str)
@@ -80,7 +80,7 @@ def add_argument(parser):
                         action='store_true',
                         help="Whether not to use CUDA when available")
     parser.add_argument("--hidden_size",
-                        default=64,
+                        default=128,
                         type=int)
     parser.add_argument("--hidden_dropout_prob",
                         default=0.1,
@@ -101,13 +101,13 @@ def add_argument(parser):
                         type=int)
     parser.add_argument("-d", "--distributed_training",
                         nargs='?',
-                        default=8,
+                        default=1,
                         const=4,
                         type=int)
     parser.add_argument("--cuda_visible_device_num",
                         default=None,
                         type=int)
-    parser.add_argument("--use_map",
+    parser.add_argument("--use_map", default=True,
                         action='store_true')
     parser.add_argument("--reuse_temp_file",
                         action='store_true')
@@ -122,11 +122,28 @@ def add_argument(parser):
                         action='store_true')
     parser.add_argument("--other_params",
                         nargs='*',
-                        default=[],
+                        default=["semantic_lane", 
+                        "direction l1_loss",
+                                    "goals_2D", "enhance_global_graph", 
+                                    "subdivide",
+                                    "lazy_points"
+                                    "new",
+                                    "laneGCN",
+                                    "point_sub_graph",
+                                    "stage_one", "stage_one_dynamic=0.95",
+                                    "laneGCN-4",
+                                    "point_level-4-3",
+                                    "complete_traj",
+                                    "complete_traj-3"],
                         type=str)
     parser.add_argument("-ep", "--eval_params",
                         nargs='*',
-                        default=[],
+                        default=[
+                            "optimization", 
+                            "MRminFDE=0.0", 
+                            "cnt_sample=9", 
+                            "opti_time=0.1"
+                        ],
                         type=str)
     parser.add_argument("-tp", "--train_params",
                         nargs='*',
@@ -134,14 +151,13 @@ def add_argument(parser):
                         type=str)
     parser.add_argument("--not_use_api",
                         action='store_true')
-    parser.add_argument("--core_num",
-                        default=1,
+    parser.add_argument("--core_num", default=16,
                         type=int)
     parser.add_argument("--visualize",
                         action='store_true')
     parser.add_argument("--train_extra",
                         action='store_true')
-    parser.add_argument("--use_centerline",
+    parser.add_argument("--use_centerline", default=True,
                         action='store_true')
     parser.add_argument("--autoregression",
                         nargs='?',
@@ -178,12 +194,12 @@ def add_argument(parser):
                         type=int)
     parser.add_argument("--waymo",
                         action='store_true')
-    parser.add_argument("--argoverse",
+    parser.add_argument("--argoverse", default=True,
                         action='store_true')
     parser.add_argument("--nuscenes",
                         action='store_true')
     parser.add_argument("--future_frame_num",
-                        default=80,
+                        default=30,
                         type=int)
     parser.add_argument("--future_test_frame_num",
                         default=16,
@@ -275,11 +291,14 @@ def init(args_: Args, logger_):
         print('{} {} exists'.format(get_color_text('Warning!'), args.output_dir))
         input()
 
+
     if args.do_eval:
-        assert os.path.exists(args.output_dir)
-        assert os.path.exists(args.data_dir_for_val)
+        # assert os.path.exists(args.output_dir)
+        # assert os.path.exists(args.data_dir_for_val)
+        pass
     else:
-        assert os.path.exists(args.data_dir)
+        # assert os.path.exists(args.data_dir)
+        pass
 
     if args.log_dir is None:
         args.log_dir = args.output_dir
@@ -309,7 +328,7 @@ def init(args_: Args, logger_):
         if os.path.exists(src_dir):
             subprocess.check_output('rm -r {}'.format(src_dir), shell=True, encoding='utf-8')
         os.makedirs(src_dir, exist_ok=False)
-        for each in os.listdir('src'):
+        for each in os.listdir('/home/joe/Desktop/DenseTNT/src'):
             is_dir = '-r' if os.path.isdir(os.path.join('src', each)) else ''
             subprocess.check_output(f'cp {is_dir} {os.path.join("src", each)} {src_dir}', shell=True, encoding='utf-8')
         with open(os.path.join(src_dir, 'cmd'), 'w') as file:
@@ -396,8 +415,9 @@ def get_pad_vector(li):
     """
     Pad vector to length of args.hidden_size
     """
-    assert len(li) <= args.hidden_size
-    li.extend([0] * (args.hidden_size - len(li)))
+    hidden_size = 128
+    assert len(li) <= hidden_size
+    li.extend([0] * (hidden_size - len(li)))
     return li
 
 
@@ -1599,7 +1619,11 @@ i_epoch = None
 def get_from_mapping(mapping: List[Dict], key=None):
     if key is None:
         line_context = inspect.getframeinfo(inspect.currentframe().f_back).code_context[0]
+        # print("line_context = {}".format(line_context))
         key = line_context.split('=')[0].strip()
+        # print("key = {}".format(key))
+    # print("key = {}".format(key))
+    
     return [each[key] for each in mapping]
 
 

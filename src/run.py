@@ -16,6 +16,14 @@ from tqdm import tqdm as tqdm_
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+path_prefix = "/home/joe/Dataset/Interaction/INTERACTION-Dataset-DR-single-v1_2"
+mode = "train"
+data_path = os.path.join(path_prefix, mode)
+map_path = os.path.join(path_prefix, "maps")
+target_veh_path = os.path.join(path_prefix, f"{mode}_target_filter")
+save_dir = "/home/joe/Desktop/trained_model/dense_tnt/train"
+os.makedirs(save_dir, exist_ok=True)
+
 
 def compile_pyx_files():
     if True:
@@ -245,8 +253,17 @@ def demo_basic(rank, world_size, kwargs, queue):
 
     if args.argoverse:
         if args.argoverse:
-            from dataset_argoverse import Dataset
-        train_dataset = Dataset(args, args.train_batch_size, to_screen=False)
+            from dataset_interaction import Dataset
+        # train_dataset = Dataset(args, args.train_batch_size, to_screen=False)
+        train_dataset = Dataset(
+        args=args,
+        batch_size=args.train_batch_size,
+        data_path=data_path,
+        map_path=map_path,
+        target_veh_path=target_veh_path,
+        mode=mode,
+        save_dir=save_dir
+    )
 
         train_sampler = DistributedSampler(train_dataset, shuffle=args.do_train)
         assert args.train_batch_size == 64, 'The optimal total batch size for training is 64'
@@ -288,7 +305,7 @@ def run(args):
 
     print("Loading dataset", args.data_dir)
     if args.argoverse:
-        from dataset_argoverse import Dataset
+        from dataset_interaction import Dataset
 
     if args.distributed_training:
         queue = mp.Manager().Queue()
@@ -297,7 +314,16 @@ def run(args):
                                  args=(args.distributed_training, kwargs, queue),
                                  nprocs=args.distributed_training,
                                  join=False)
-        train_dataset = Dataset(args, args.train_batch_size)
+        # train_dataset = Dataset(args, args.train_batch_size)
+        train_dataset = Dataset(
+        args=args,
+        batch_size=args.train_batch_size,
+        data_path=data_path,
+        map_path=map_path,
+        target_veh_path=target_veh_path,
+        mode=mode,
+        save_dir=save_dir
+    )
         queue.put(True)
         while not spawn_context.join():
             pass
